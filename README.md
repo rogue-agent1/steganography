@@ -1,6 +1,6 @@
 # steganography
 
-Hide messages in PPM images using LSB steganography
+Text steganography — hide messages in whitespace and zero-width chars
 
 ## Usage
 
@@ -8,4 +8,6 @@ Hide messages in PPM images using LSB steganography
 python3 steganography.py --help
 ```
 
-Zero dependencies. Python 3.8+.
+## License
+
+MIT
