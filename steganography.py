@@ -1,23 +1,64 @@
 #!/usr/bin/env python3
-"""Hide messages in text using zero-width characters."""
-import sys
-ZWC=['\u200b','\u200c','\u200d','\u2060']  # zero-width chars for 00,01,10,11
-def encode(msg,cover):
-    bits=''.join(f'{b:08b}' for b in msg.encode())
-    encoded=''
-    for i in range(0,len(bits),2): encoded+=ZWC[int(bits[i:i+2],2)]
-    return cover[:len(cover)//2]+encoded+cover[len(cover)//2:]
-def decode(text):
-    bits=''
-    for c in text:
-        if c in ZWC: bits+=f'{ZWC.index(c):02b}'
-    return bytes(int(bits[i:i+8],2) for i in range(0,len(bits)-len(bits)%8,8)).decode(errors='replace')
-if len(sys.argv)<2: sys.exit("Usage: steganography <encode|decode> [message] [cover_text]")
-if sys.argv[1]=='encode':
-    msg=sys.argv[2] if len(sys.argv)>2 else 'secret'
-    cover=sys.argv[3] if len(sys.argv)>3 else 'This is a normal sentence.'
-    result=encode(msg,cover); print(f"Encoded ({len(result)} chars): {result}")
-    print(f"Visible: {result.encode().decode('unicode_escape') if False else ''.join(c for c in result if ord(c)>32)}")
-else:
-    text=sys.argv[2] if len(sys.argv)>2 else sys.stdin.read()
-    print(f"Hidden message: {decode(text)}")
+"""steganography - LSB steganography in PPM images."""
+import argparse, sys
+
+def read_ppm(path):
+    with open(path,"rb") as f:
+        assert f.readline().strip() == b"P6"
+        line = f.readline()
+        while line.startswith(b"#"): line = f.readline()
+        w, h = map(int, line.split())
+        maxval = int(f.readline().strip())
+        data = bytearray(f.read())
+    return w, h, data
+
+def write_ppm(path, w, h, data):
+    with open(path,"wb") as f:
+        f.write(f"P6\n{w} {h}\n255\n".encode())
+        f.write(bytes(data))
+
+def encode(img_path, message, output):
+    w, h, data = read_ppm(img_path)
+    msg_bits = []
+    msg_bytes = message.encode() + b"\x00"
+    for byte in msg_bytes:
+        for bit in range(8):
+            msg_bits.append((byte >> (7-bit)) & 1)
+    if len(msg_bits) > len(data):
+        print(f"Message too large ({len(msg_bits)} bits > {len(data)} pixels)"); return
+    for i, bit in enumerate(msg_bits):
+        data[i] = (data[i] & 0xFE) | bit
+    write_ppm(output, w, h, data)
+    print(f"Encoded {len(message)} chars into {output}")
+
+def decode(img_path):
+    _, _, data = read_ppm(img_path)
+    chars = []; byte = 0
+    for i, pixel in enumerate(data):
+        byte = (byte << 1) | (pixel & 1)
+        if (i + 1) % 8 == 0:
+            if byte == 0: break
+            chars.append(chr(byte)); byte = 0
+    return "".join(chars)
+
+def make_test_ppm(path, w=100, h=100):
+    data = bytearray()
+    for y in range(h):
+        for x in range(w):
+            data.extend([int(x*255/w), int(y*255/h), 128])
+    write_ppm(path, w, h, data)
+    print(f"Created test image: {path}")
+
+def main():
+    p = argparse.ArgumentParser(description="LSB steganography")
+    sub = p.add_subparsers(dest="cmd")
+    e = sub.add_parser("encode"); e.add_argument("image"); e.add_argument("message"); e.add_argument("-o","--output",default="stego.ppm")
+    d = sub.add_parser("decode"); d.add_argument("image")
+    t = sub.add_parser("testimg"); t.add_argument("-o","--output",default="test.ppm")
+    a = p.parse_args()
+    if a.cmd == "encode": encode(a.image, a.message, a.output)
+    elif a.cmd == "decode": print(f"Hidden message: {decode(a.image)}")
+    elif a.cmd == "testimg": make_test_ppm(a.output)
+    else: p.print_help()
+
+if __name__ == "__main__": main()
