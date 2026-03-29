@@ -1,6 +1,6 @@
 # steganography
 
-Text steganography — hide messages in whitespace and zero-width chars
+Text steganography using zero-width chars
 
 ## Usage
 
@@ -8,6 +8,7 @@ Text steganography — hide messages in whitespace and zero-width chars
 python3 steganography.py --help
 ```
 
-## License
+## Features
 
-MIT
+- Zero dependencies (Python 3.8+)
+- Single file implementation
