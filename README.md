@@ -1,14 +1,9 @@
 # steganography
 
-Text steganography using zero-width chars
+LSB steganography for hiding text in images (PBM). Zero-dependency, single-file Python CLI.
 
 ## Usage
 
 ```bash
 python3 steganography.py --help
 ```
-
-## Features
-
-- Zero dependencies (Python 3.8+)
-- Single file implementation
